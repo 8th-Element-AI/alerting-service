@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "errormon"
+version = "0.1.0"
+description = "Lightweight error monitoring client library"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+# Needed only when using transport="queue" or transport="both"
+queue = ["google-cloud-pubsub", "google-auth"]
+# Needed only if you want to load environment variables from a .env file
+dotenv = ["python-dotenv"]
+
+[tool.setuptools.packages.find]
+where = ["alertingSystem"]
+include = ["errormon*"]
+
