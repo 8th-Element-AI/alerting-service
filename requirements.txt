@@ -1,0 +1,17 @@
+# API server
+flask==3.1.2
+
+# GCP Pub/Sub (optional — only needed when using queue transport)
+google-cloud-pubsub==2.36.0
+
+# Environment variable loading
+python-dotenv==1.2.1
+
+# Redis — shared deduplication state across subscriber instances
+redis==7.4.0
+
+# Rate limiting
+flask-limiter==4.1.1
+
+# pin to exact version after first install: pip freeze | grep psycopg
+psycopg[binary,pool]>=3.2

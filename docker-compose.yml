@@ -1,0 +1,67 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: errormon-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:16
+    container_name: errormon-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: errormon
+      POSTGRES_USER: errormon
+      POSTGRES_PASSWORD: errormon
+    ports:
+      - "5432:5432"
+    volumes:
+      - errormon_pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: errormon-api
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      # Inside Docker, connect to services via container name, not localhost.
+      DATABASE_URL: postgresql://errormon:errormon@postgres:5432/errormon
+      REDIS_URL: redis://redis:6379
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/ai-applications-470811.json
+      PORT: "5001"
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./secrets:/secrets:ro
+    command: python app.py
+
+  subscriber:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: errormon-subscriber
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      DATABASE_URL: postgresql://errormon:errormon@postgres:5432/errormon
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/ai-applications-470811.json
+      ALERTING_SUBSCRIPTION: projects/ai-applications-470811/subscriptions/alerting_service-sub
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./secrets:/secrets:ro
+    command: python subscriber.py
+
+volumes:
+  errormon_pgdata:
+
