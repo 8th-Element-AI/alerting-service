@@ -8,14 +8,8 @@ Notice: no GCP credentials, no Pub/Sub imports — just an API URL.
 from errormon import catchError
 
 # Initialize once (e.g. at app startup)
-client = catchError(
-    config={
-        "api_url": "http://localhost:5000",   # your API server
-        "api_key": "your-api-key",            # optional, remove if auth disabled
-        "service_name": "payment-service",
-        "environment": "production",
-    }
-)
+# Reads ALERTING_API_URL, ALERTING_API_KEY, SERVICE_NAME, ENVIRONMENT from env
+client = catchError()
 
 
 def raise_exception():

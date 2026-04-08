@@ -48,7 +48,7 @@ def _send_email(subject: str, body: str) -> bool:
     """Returns True if email was sent successfully, False otherwise."""
     recipients = [
         e.strip()
-        for e in os.getenv("ALERT_EMAIL_GROUP", "oncall@yourcompany.com").split(",")
+        for e in os.getenv("ALERT_EMAIL_GROUP", "").split(",")
         if e.strip()
     ]
     sender = os.getenv("ALERT_FROM_EMAIL")

@@ -6,14 +6,7 @@ sys.path.insert(0, str(Path(__file__).parent / "alertingSystem"))
 from errormon import catchError
 
 
-client = catchError(
-    config={
-        "api_url": "http://localhost:5001",
-        "api_key": "",  
-        "service_name": "my-test-service",
-        "environment": "development",
-    }
-)
+client = catchError()
 
 
 def run_test():
