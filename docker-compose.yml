@@ -1,67 +1,92 @@
-services:
-  redis:
-    image: redis:7-alpine
-    container_name: errormon-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
+version: '3.8'
 
+services:
   postgres:
-    image: postgres:16
-    container_name: errormon-postgres
-    restart: unless-stopped
+    image: postgres:16-alpine
     environment:
-      POSTGRES_DB: errormon
       POSTGRES_USER: errormon
-      POSTGRES_PASSWORD: errormon
+      POSTGRES_PASSWORD: errormon123
+      POSTGRES_DB: errormon_db
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U errormon"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
-      - errormon_pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"  # SMTP port
+      - "8025:8025"  # Web UI port
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: errormon-api
-    restart: unless-stopped
-    env_file:
-      - ./.env
-    environment:
-      # Inside Docker, connect to services via container name, not localhost.
-      DATABASE_URL: postgresql://errormon:errormon@postgres:5432/errormon
-      REDIS_URL: redis://redis:6379
-      GOOGLE_APPLICATION_CREDENTIALS: /secrets/ai-applications-470811.json
-      PORT: "5001"
-    depends_on:
-      - postgres
-      - redis
+    build: .
     ports:
-      - "5001:5001"
-    volumes:
-      - ./secrets:/secrets:ro
-    command: python app.py
-
-  subscriber:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: errormon-subscriber
-    restart: unless-stopped
-    env_file:
-      - ./.env
+      - "5001:5000"
     environment:
-      DATABASE_URL: postgresql://errormon:errormon@postgres:5432/errormon
-      GOOGLE_APPLICATION_CREDENTIALS: /secrets/ai-applications-470811.json
-      ALERTING_SUBSCRIPTION: projects/ai-applications-470811/subscriptions/alerting_service-sub
-      REDIS_URL: redis://redis:6379
+      FLASK_ENV: development
+      PORT: 5000
+      DATABASE_URL: postgresql://errormon:errormon123@postgres:5432/errormon_db
+      REDIS_URL: redis://redis:6379/0
+      ALERTING_API_KEY: CFG0ZgXzRm28Q-6Y56ORIvvRFUWXrJa98
+      SERVICE_NAME: test-service
+      ENVIRONMENT: development
+      
+      # Email configuration for MailHog
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USER: test
+      SMTP_PASS: test
+      SMTP_USE_TLS: "false"
+      ALERT_FROM_EMAIL: alerts@example.com
+      ALERT_EMAIL_GROUP: oncall@example.com
+      
+      # Deduplication window (360 seconds = 6 minutes)
+      DEDUP_WINDOW_SECONDS: 360
+      
+      # Pub/Sub not configured, will use direct processing
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
     volumes:
-      - ./secrets:/secrets:ro
-    command: python subscriber.py
+      - .:/app
+    command: python alertingSystem/app.py
+
+  test-client:
+    build: .
+    environment:
+      ALERTING_API_URL: http://api:5000
+      ALERTING_API_KEY: CFG0ZgXzRm28Q-6Y56ORIvvRFUWXrJa98
+      SERVICE_NAME: test_client
+      ENVIRONMENT: development
+    depends_on:
+      api:
+        condition: service_started
+    volumes:
+      - .:/app
+    command: python test_client.py
 
 volumes:
-  errormon_pgdata:
+  postgres_data:
 
+networks:
+  default:
+    name: errormon-network

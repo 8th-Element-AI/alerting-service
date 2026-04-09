@@ -3,17 +3,14 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent / "alertingSystem"))
 
-from errormon import catchError
+import errormon
 
-
-client = catchError(
-    config={
-        "api_url": "http://localhost:5001",
-        "api_key": "",  
-        "service_name": "my-test-service",
-        "environment": "development",
-    }
-)
+errormon.init(config={
+    "api_url": "http://localhost:5000",
+    "api_key": "CFG0ZgXzRm28Q-6Y56ORIvvRFUWXrJa98",
+    "service_name": "test_client",
+    "environment": "development",
+})
 
 
 def run_test():
@@ -21,7 +18,7 @@ def run_test():
         value = 1 / 0
         return value
     except Exception as exc:
-        client.catchError(exc, metadata={"module": "test_client", "user_id": "123"})
+        errormon.report(exc, metadata={"module": "test_client", "user_id": "123"})
 
 
 if __name__ == "__main__":
