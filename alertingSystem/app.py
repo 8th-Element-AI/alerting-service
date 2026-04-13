@@ -32,7 +32,7 @@ try:
 except ImportError:
     pass
 
-from db import get_database_url, init_pool
+from db import get_database_url, init_db
 from processing import ErrorOccurrenceProcessor
 from pub_sub.base import GCPConfig
 from pub_sub.client import PubSubClient
@@ -44,7 +44,7 @@ logger = get_logger(__name__)
 _db_url = get_database_url()
 if not _db_url:
     raise RuntimeError("DATABASE_URL is required.")
-init_pool(_db_url)
+init_db(_db_url)
 
 
 TOPIC_ID = os.getenv("GCP_TOPIC_ID")
