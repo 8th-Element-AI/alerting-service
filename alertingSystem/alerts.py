@@ -32,7 +32,6 @@ if not (_smtp_host and _smtp_sender and _smtp_recipients):
     )
 RETRY_BASE_SECONDS = 2  # exponential: 2s, 4s, 8s
 
-
 def send_alert(error_key: str, count: int, details: Dict[str, Any]) -> bool:
     """
     Dispatch an alert email when an error crosses the occurrence threshold.
@@ -118,14 +117,55 @@ def _format_text_body(details: Dict[str, Any], count: int) -> str:
     max_chars = int(os.getenv("ALERT_STACKTRACE_MAX_CHARS", "8000"))
     if len(stack_trace) > max_chars:
         stack_trace = f"{stack_trace[:max_chars]}\n... (truncated)"
-    return (
-        f"Error Type   : {details.get('error_type', 'N/A')}\n"
-        f"Error Message: {details.get('error_message', 'N/A')}\n"
-        f"Service      : {details.get('service_name', 'N/A')}\n"
-        f"Environment  : {details.get('environment', 'N/A')}\n"
-        f"Last seen    : {last_seen}\n"
-        f"\nStack Trace:\n{stack_trace}"
-    )
+    service = details.get("service_name", "")
+    meta = details.get("metadata") or {}
+
+    lines = [
+        f"Error Type   : {details.get('error_type', 'N/A')}",
+        f"Error Message: {details.get('error_message', 'N/A')}",
+        f"Service      : {details.get('service_name', 'N/A')}",
+        f"Environment  : {details.get('environment', 'N/A')}",
+        f"Occurrences  : {count}",
+        f"Last seen    : {last_seen}",
+    ]
+
+    if meta.get("job_id"):
+        lines.append(f"Job ID       : {meta['job_id']}")
+    if meta.get("correlation_id"):
+        lines.append(f"Correlation  : {meta['correlation_id']}")
+    if meta.get("stage"):
+        lines.append(f"Stage        : {meta['stage']}")
+
+    if service == "document-processing":
+        if meta.get("document_name"):
+            lines.append(f"Document Name: {meta['document_name']}")
+        if meta.get("customer_name"):
+            lines.append(f"Customer     : {meta['customer_name']}")
+        if meta.get("revision_id"):
+            lines.append(f"Revision ID  : {meta['revision_id']}")
+        if meta.get("agent_name"):
+            lines.append(f"Failed Agent : {meta['agent_name']}")
+        if meta.get("guideline_number"):
+            lines.append(f"Guideline No.: {meta['guideline_number']}")
+
+    elif service == "scraping":
+        if meta.get("customer_name"):
+            lines.append(f"Customer     : {meta['customer_name']}")
+        if meta.get("source_id"):
+            lines.append(f"Source ID    : {meta['source_id']}")
+        if meta.get("url"):
+            lines.append(f"URL          : {meta['url']}")
+        if meta.get("scraping_utility"):
+            lines.append(f"Scraping Tool: {meta['scraping_utility']}")
+        if meta.get("scraping_step"):
+            lines.append(f"Scraping Step: {meta['scraping_step']}")
+        if meta.get("downloaded_count") is not None:
+            lines.append(f"Downloaded   : {meta['downloaded_count']}")
+        if meta.get("error_count") is not None:
+            lines.append(f"Errors       : {meta['error_count']}")
+
+    lines.append(f"\nStack Trace:\n{stack_trace}")
+    return "\n".join(lines)
 
 
 def _format_html_body(details: Dict[str, Any], count: int) -> str:
@@ -134,13 +174,52 @@ def _format_html_body(details: Dict[str, Any], count: int) -> str:
     max_chars = int(os.getenv("ALERT_STACKTRACE_MAX_CHARS", "8000"))
     truncated = len(stack_trace) > max_chars
     stack_trace = stack_trace[:max_chars]
+    service = details.get("service_name", "")
+    meta = details.get("metadata") or {}
+
     items = [
         ("Error type", details.get("error_type", "N/A")),
         ("Message", details.get("error_message", "N/A")),
         ("Service", details.get("service_name", "N/A")),
         ("Environment", details.get("environment", "N/A")),
+        ("Occurrences", str(count)),
         ("Last seen", last_seen),
     ]
+
+    if meta.get("stage"):
+        items.append(("Stage", meta["stage"]))
+    if meta.get("job_id"):
+        items.append(("Job ID", meta["job_id"]))
+    if meta.get("correlation_id"):
+        items.append(("Correlation ID", meta["correlation_id"]))
+
+    if service == "document-processing":
+        if meta.get("document_name"):
+            items.append(("Document Name", meta["document_name"]))
+        if meta.get("customer_name"):
+            items.append(("Customer", meta["customer_name"]))
+        if meta.get("revision_id"):
+            items.append(("Revision ID", meta["revision_id"]))
+        if meta.get("agent_name"):
+            items.append(("Failed Agent", meta["agent_name"]))
+        if meta.get("guideline_number"):
+            items.append(("Guideline No.", meta["guideline_number"]))
+
+    elif service == "scraping":
+        if meta.get("customer_name"):
+            items.append(("Customer", meta["customer_name"]))
+        if meta.get("source_id"):
+            items.append(("Source ID", meta["source_id"]))
+        if meta.get("url"):
+            items.append(("URL", meta["url"]))
+        if meta.get("scraping_utility"):
+            items.append(("Scraping Tool", meta["scraping_utility"]))
+        if meta.get("scraping_step"):
+            items.append(("Scraping Step", meta["scraping_step"]))
+        if meta.get("downloaded_count") is not None:
+            items.append(("Downloaded", str(meta["downloaded_count"])))
+        if meta.get("error_count") is not None:
+            items.append(("Errors", str(meta["error_count"])))
 
     rows = "\n".join(
         f"<tr><th style=\"text-align:left;padding:8px;border:1px solid #e5e7eb;background:#f9fafb\">"

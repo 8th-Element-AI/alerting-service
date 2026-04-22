@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 import redis
@@ -47,18 +48,24 @@ class ErrorOccurrenceProcessor:
             error_id = None
 
         # Fast path: Redis says we've seen this recently — suppress
-        is_first = self._redis.set(
-            error_key,
-            "1",
-            nx=True,
-            ex=self._alert_cooldown_seconds,
-        )
+        redis_available = True
+        try:
+            is_first = self._redis.set(
+                error_key,
+                "1",
+                nx=True,
+                ex=self._alert_cooldown_seconds,
+            )
+        except Exception as e:
+            logger.warning(f"Redis unavailable during dedup check, falling back to DB: {e}")
+            redis_available = False
+            is_first = None
 
-        if not is_first:
+        if redis_available and not is_first:
             logger.info(f"Alert suppressed (Redis cooldown): {error_key}")
             return True
 
-        # Redis didn't have it (cold start / restart) — check Postgres for last_alerted_at
+        # Redis didn't have it (cold start / restart / unavailable) — check Postgres for last_alerted_at
         try:
             last_alerted_at = get_last_alerted_at(error_key)
         except Exception as e:
@@ -66,7 +73,6 @@ class ErrorOccurrenceProcessor:
             last_alerted_at = None
 
         if last_alerted_at is not None:
-            from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
             elapsed = (now - last_alerted_at).total_seconds()
             if elapsed < self._alert_cooldown_seconds:

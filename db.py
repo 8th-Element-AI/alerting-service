@@ -82,11 +82,15 @@ def init_db(database_url: str) -> None:
                 create index if not exists idx_errors_type on errors (error_type);
                 """
             )
-
-            # Backwards-compatible migrations for existing DBs
-            cur.execute("alter table errors add column if not exists mail_sent boolean not null default false;")
-            cur.execute("alter table errors add column if not exists mail_sent_at timestamptz;")
         conn.commit()
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute("alter table errors add column if not exists mail_sent boolean not null default false;")
+                cur.execute("alter table errors add column if not exists mail_sent_at timestamptz;")
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
 
 def insert_error(payload: Dict[str, Any]) -> int:
@@ -124,7 +128,8 @@ def insert_error(payload: Dict[str, Any]) -> int:
                 ),
             )
             row = cur.fetchone()
-            assert row is not None
+            if row is None:
+                raise RuntimeError("INSERT INTO errors RETURNING id returned no row")
             inserted_id = int(row[0])
         conn.commit()
     return inserted_id
