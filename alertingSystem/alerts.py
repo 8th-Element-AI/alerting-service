@@ -32,7 +32,6 @@ if not (_smtp_host and _smtp_sender and _smtp_recipients):
     )
 RETRY_BASE_SECONDS = 2  # exponential: 2s, 4s, 8s
 
-
 def send_alert(error_key: str, count: int, details: Dict[str, Any]) -> bool:
     """
     Dispatch an alert email when an error crosses the occurrence threshold.

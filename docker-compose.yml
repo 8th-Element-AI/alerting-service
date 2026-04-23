@@ -52,9 +52,8 @@ services:
       - ./.env
     environment:
       DATABASE_URL: postgresql://errormon:errormon@postgres:5432/errormon
-      GOOGLE_APPLICATION_CREDENTIALS: /secrets/ai-applications-470811.json
-      ALERTING_SUBSCRIPTION: projects/ai-applications-470811/subscriptions/alerting_service-sub
       REDIS_URL: redis://redis:6379
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/ai-applications-470811.json
     depends_on:
       - postgres
       - redis
