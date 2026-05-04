@@ -16,5 +16,8 @@ redis==7.4.0
 # Rate limiting
 flask-limiter==4.1.1
 
+# CORS — allows browser (frontend) requests to /errors
+flask-cors==5.0.1
+
 # pin to exact version after first install: pip freeze | grep psycopg
 psycopg[binary,pool]>=3.2

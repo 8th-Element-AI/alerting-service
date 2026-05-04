@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -65,6 +66,14 @@ else:
 
 
 app = Flask(__name__)
+
+_raw_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+if _allowed_origins:
+    CORS(app, resources={r"/errors": {"origins": _allowed_origins}})
+    logger.info(f"CORS enabled for /errors — allowed origins: {_allowed_origins}")
+else:
+    logger.info("CORS_ALLOWED_ORIGINS not set — CORS disabled (backend/server clients only).")
 
 limiter = Limiter(
     key_func=get_remote_address,
